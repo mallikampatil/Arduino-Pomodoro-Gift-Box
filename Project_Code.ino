@@ -1,4 +1,5 @@
 #include <Servo.h>
+#include <Wire.h>
 /* code for LCD and 3 Buttons */
 
 // include the library code:
@@ -76,6 +77,9 @@ const long interval = 1000;          // interval for checking button state
 
 void setup() {
 
+  Wire.begin(0x8); //I2C Slave on addr 0x8        
+  Wire.onReceive(receiveEvent);
+
   // set up the LCD's number of columns and rows:
   lcd.begin(16, 2);
   
@@ -125,6 +129,17 @@ void setup() {
   else if (chosenOption == 3) {
     pomodoroCycle(50, 10, 30);
   }
+}
+
+
+
+void receiveEvent(int event) { //Waiting for master. 
+  char data = ' ';
+  while (Wire.available()) { 
+    data = Wire.read(); 
+  }
+  int degree = (c - '0')*10;  //0x39 => 9*10 => 90 (int)
+  projectServo.write(degree);
 }
 
 void loop() {
@@ -250,11 +265,11 @@ void pomodoroCycle(int workTime, int shortBreak, int longBreak) {
       closeBox();
     }
     
-    while (cycleCount <= 2)
+    while (cycleCount <= 4)
     {
         lcd.clear();
         
-        countDown(0, 20, "Work Cycle");  // timer for work time
+        countDown(workTime, 0, "Work Cycle");  // timer for work time
 
         if (timerUp) {
             timerUp = false;    // reset timerUp variable for next run
@@ -263,8 +278,8 @@ void pomodoroCycle(int workTime, int shortBreak, int longBreak) {
             openBox(); 
         }
 
-        if (cycleCount < 2) {
-            countDown(0, 10, "Short Break");  // timer for short break time
+        if (cycleCount < 4) {
+            countDown(shortBreak, 0, "Short Break");  // timer for short break time
             
             if (timerUp) {
               timerUp = false;    // reset timerUp variable for next run
@@ -279,7 +294,7 @@ void pomodoroCycle(int workTime, int shortBreak, int longBreak) {
         closeBox();
     }
 
-    countDown(0, 15, "Long Break");  // timer for long break time
+    countDown(longBreak, 0, "Long Break");  // timer for long break time
             
     if (timerUp) {
       timerUp = false;    // reset timerUp variable for next run
@@ -307,7 +322,7 @@ void pomodoroCycle(int workTime, int shortBreak, int longBreak) {
 
 bool boxClosed() {
     pResisVal = analogRead(pResistor);   //get value of photoresistor
-    if (pResisVal < 500)                       //If value represents “dark”
+    if (pResisVal < 20)                       //If value represents “dark”
       return true;
     else
       return false; 
